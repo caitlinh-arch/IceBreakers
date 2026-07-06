@@ -9,8 +9,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #f7f5f0; --surface: #ffffff; --border: #e4e0d8;
-      --accent: #4f46e5; --accent-light: #ede9fe;
-      --text: #1a1825; --muted: #6b6680;
+      --accent: #4f46e5; --text: #1a1825; --muted: #6b6680;
     }
     body {
       background: var(--bg); color: var(--text);
@@ -74,6 +73,8 @@
   </div>
 </div>
 <script>
+  const SCRIPT_URL = 'https://script.google.com/a/macros/salt.security/s/AKfycbxUXfVWDdowaGOQS_C8nh94qKa7uMo-bJjwVjURjHunbZbg8rcZspt8-inOqpdPVK3bqg/exec';
+
   const questions = [
     { category:"Work Style", q:"What does your ideal Monday morning look like?" },
     { category:"Work Style", q:"Are you a to-do list person or a 'keep it in your head' person?" },
@@ -120,14 +121,18 @@
     btn.textContent = 'Saving…';
 
     try {
-      let responses = [];
-      try {
-        const existing = await window.storage.get('icebreaker-responses', true);
-        if (existing) responses = JSON.parse(existing.value);
-      } catch(e) { responses = []; }
-
-      responses.push({ name, answer, question: daily.q, category: daily.category, timestamp: new Date().toISOString() });
-      await window.storage.set('icebreaker-responses', JSON.stringify(responses), true);
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          answer,
+          question: daily.q,
+          category: daily.category,
+          timestamp: new Date().toISOString()
+        })
+      });
 
       document.getElementById('successName').textContent = name.split(' ')[0];
       document.getElementById('mainForm').classList.add('hide');
