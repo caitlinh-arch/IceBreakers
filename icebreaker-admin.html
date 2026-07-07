@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Icebreaker Responses — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg:#f7f5f0; --surface:#fff; --border:#e4e0d8; --accent:#4f46e5; --text:#1a1825; --muted:#6b6680; }
+    body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; padding:2.5rem 1rem; }
+    .page { max-width:700px; margin:0 auto; }
+    .eyebrow { font-size:.72rem; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin-bottom:.5rem; }
+    h1 { font-family:'Syne',sans-serif; font-size:clamp(1.8rem,4vw,2.4rem); font-weight:800; line-height:1.1; margin-bottom:.4rem; }
+    .subtitle { color:var(--muted); font-size:.9rem; margin-bottom:2rem; }
+    .info-box { background:#ede9fe; border:1px solid #c4b5fd; border-radius:10px; padding:1rem 1.25rem; font-size:.875rem; color:#4f46e5; margin-bottom:1.5rem; line-height:1.6; }
+    .info-box a { color:var(--accent); font-weight:600; }
+    .toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; margin-bottom:1.5rem; }
+    .count-badge { background:var(--accent); color:#fff; font-size:.75rem; font-weight:600; padding:.3em .85em; border-radius:100px; }
+    .btn { font-family:'Inter',sans-serif; font-size:.8rem; font-weight:600; padding:.45em 1em; border-radius:8px; cursor:pointer; transition:all .15s; }
+    .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--muted); }
+    .btn-ghost:hover { color:var(--text); border-color:var(--muted); }
+    .btn-primary { background:var(--accent); border:none; color:#fff; }
+    .btn-primary:hover { background:#4338ca; }
+    .response-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.5rem; margin-bottom:1rem; box-shadow:0 1px 6px rgba(0,0,0,.04); animation:fadeUp .3s ease; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1} }
+    .card-meta { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem; margin-bottom:.5rem; }
+    .name-badge { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; }
+    .time-tag { font-size:.75rem; color:var(--muted); }
+    .q-row { font-size:.82rem; color:var(--muted); margin-bottom:.5rem; font-style:italic; }
+    .answer-text { font-size:.95rem; line-height:1.65; }
+    .empty { text-align:center; padding:4rem 1rem; }
+    .empty .icon { font-size:2.5rem; margin-bottom:1rem; }
+    .empty h3 { font-family:'Syne',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:.4rem; }
+    .empty p { color:var(--muted); font-size:.9rem; line-height:1.6; }
+    .last-updated { font-size:.75rem; color:var(--muted); }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div>
+    <p class="eyebrow">Admin View</p>
+    <h1>Icebreaker Responses</h1>
+    <p class="subtitle">All submissions from your team.</p>
+  </div>
+
+  <div class="info-box">
+    📊 Responses are stored directly in your Google Sheet and Google Form.<br>
+    <strong>To view all responses:</strong> open your <a href="https://docs.google.com/forms/d/e/1FAIpQLSf7uNmowlLSTVwabTyUo439B1C33TFKAgzRDo6eEdQxBFb_Hg/viewform" target="_blank">Google Form</a> → click the <strong>Responses</strong> tab, or open the linked Google Sheet directly for a full spreadsheet view.
+  </div>
+
+  <div class="toolbar">
+    <span class="count-badge" id="countBadge">Loading…</span>
+    <div style="display:flex;gap:.5rem;align-items:center;">
+      <span class="last-updated" id="lastUpdated"></span>
+      <button class="btn btn-ghost" onclick="load()">↻ Refresh</button>
+      <button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
+    </div>
+  </div>
+
+  <div id="content"><p style="color:var(--muted);font-size:.9rem;text-align:center;padding:2rem;">Loading responses…</p></div>
+</div>
+
+<script>
+  const SHEET_ID = '1FAIpQLSf7uNmowlLSTVwabTyUo439B1C33TFKAgzRDo6eEdQxBFb_Hg';
+  // We'll load from the Apps Script GET endpoint
+  const SCRIPT_URL = 'https://script.google.com/a/macros/salt.security/s/AKfycbxrZ4XBF2REgbxVNhYrGFJUxChFVHgu2Uy7yT82bujq4bOwpG5zteeQFZvupVAzRzMKaA/exec';
+
+  let allResponses = [];
+
+  function formatTime(val) {
+    if (!val) return '—';
+    const d = new Date(val);
+    return isNaN(d) ? val : d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ' · ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  }
+
+  function render() {
+    document.getElementById('countBadge').textContent = `${allResponses.length} response${allResponses.length !== 1 ? 's' : ''}`;
+    const content = document.getElementById('content');
+
+    if (allResponses.length === 0) {
+      content.innerHTML = `<div class="empty"><div class="icon">💬</div><h3>No responses yet</h3><p>Share the employee page with new hires.<br>Responses will appear here once submitted.</p></div>`;
+      return;
+    }
+
+    content.innerHTML = allResponses.slice().reverse().map(r => {
+      // Name field contains "Name | Question"
+      const parts = (r['Your name'] || r['Name'] || '').split(' | ');
+      const name = parts[0] || '—';
+      const question = parts[1] || '—';
+      const answer = r['Your answer'] || r['Answer'] || '—';
+      const time = r['Timestamp'] || '';
+      return `
+        <div class="response-card">
+          <div class="card-meta">
+            <span class="name-badge">${name.replace(/</g,'&lt;')}</span>
+            <span class="time-tag">${formatTime(time)}</span>
+          </div>
+          <p class="q-row">${question.replace(/</g,'&lt;')}</p>
+          <p class="answer-text">${answer.replace(/</g,'&lt;')}</p>
+        </div>`;
+    }).join('');
+  }
+
+  async function load() {
+    try {
+      const res = await fetch(SCRIPT_URL);
+      const data = await res.json();
+      allResponses = Array.isArray(data) ? data : [];
+      document.getElementById('lastUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      render();
+    } catch(err) {
+      document.getElementById('countBadge').textContent = '—';
+      document.getElementById('content').innerHTML = `
+        <div class="empty">
+          <div class="icon">📋</div>
+          <h3>View responses in Google Forms</h3>
+          <p>Open your <a href="https://docs.google.com/forms/d/e/1FAIpQLSf7uNmowlLSTVwabTyUo439B1C33TFKAgzRDo6eEdQxBFb_Hg/viewform" target="_blank" style="color:#4f46e5;font-weight:600;">Google Form</a> and click the <strong>Responses</strong> tab to see all submissions, or open the linked Google Sheet.</p>
+        </div>`;
+    }
+  }
+
+  function exportCSV() {
+    if (!allResponses.length) return alert('No responses to export.');
+    const keys = Object.keys(allResponses[0]);
+    const rows = allResponses.map(r => keys.map(k => `"${String(r[k]||'').replace(/"/g,'""')}"`).join(','));
+    const csv = [keys.join(','), ...rows].join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'icebreaker-responses.csv';
+    a.click();
+  }
+
+  load();
+  setInterval(load, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team Icebreaker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f7f5f0; --surface: #ffffff; --border: #e4e0d8;
+      --accent: #4f46e5; --text: #1a1825; --muted: #6b6680;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', sans-serif; min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 2rem 1rem;
+    }
+    .wrap { width: 100%; max-width: 520px; }
+    .eyebrow { font-size:.72rem; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin-bottom:.6rem; }
+    h1 { font-family:'Syne',sans-serif; font-size:clamp(1.9rem,5vw,2.8rem); font-weight:800; line-height:1.1; margin-bottom:.5rem; }
+    .tagline { color:var(--muted); font-size:.95rem; margin-bottom:2.5rem; line-height:1.6; }
+    .q-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:2rem; margin-bottom:1.25rem; box-shadow:0 2px 12px rgba(0,0,0,.05); }
+    .q-label { font-size:.7rem; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:.75rem; display:flex; align-items:center; gap:.5rem; }
+    .q-label::after { content:''; flex:1; height:1px; background:var(--border); }
+    .q-text { font-family:'Syne',sans-serif; font-size:clamp(1.1rem,3vw,1.4rem); font-weight:700; line-height:1.4; }
+    .form-group { margin-bottom:1rem; }
+    label { display:block; font-size:.8rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:.5rem; }
+    input[type="text"], textarea { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:.95rem; padding:.8rem 1rem; outline:none; transition:border-color .2s, box-shadow .2s; }
+    input[type="text"]:focus, textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(79,70,229,.1); }
+    textarea { resize:vertical; min-height:110px; }
+    .btn-submit { width:100%; background:var(--accent); color:#fff; font-family:'Inter',sans-serif; font-size:1rem; font-weight:600; padding:.85em 1.5em; border-radius:10px; border:none; cursor:pointer; margin-top:.5rem; transition:background .15s,transform .15s,box-shadow .15s; box-shadow:0 4px 14px rgba(79,70,229,.3); }
+    .btn-submit:hover { background:#4338ca; transform:translateY(-1px); }
+    .btn-submit:active { transform:translateY(0); }
+    .btn-submit:disabled { background:#a5b4fc; cursor:not-allowed; transform:none; box-shadow:none; }
+    .success-screen { display:none; text-align:center; padding:3rem 1rem; }
+    .success-screen.show { display:block; }
+    .main-form.hide { display:none; }
+    .checkmark { width:64px; height:64px; background:#d1fae5; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem; font-size:1.75rem; }
+    .success-screen h2 { font-family:'Syne',sans-serif; font-size:1.6rem; font-weight:800; margin-bottom:.5rem; }
+    .success-screen p { color:var(--muted); font-size:.95rem; line-height:1.6; }
+    .error-msg { color:#dc2626; font-size:.8rem; margin-top:.4rem; display:none; }
+    .error-msg.show { display:block; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="main-form" id="mainForm">
+    <p class="eyebrow">Team Icebreaker</p>
+    <h1>Let's get to know you.</h1>
+    <p class="tagline">Answer today's question — it only takes a minute.</p>
+    <div class="q-card">
+      <div class="q-label">Today's question</div>
+      <p class="q-text" id="questionText">Loading…</p>
+    </div>
+    <div class="form-group">
+      <label for="nameInput">Your name</label>
+      <input type="text" id="nameInput" placeholder="e.g. Jordan Smith" autocomplete="name" />
+      <p class="error-msg" id="nameError">Please enter your name.</p>
+    </div>
+    <div class="form-group">
+      <label for="answerInput">Your answer</label>
+      <textarea id="answerInput" placeholder="Share as much or as little as you'd like…"></textarea>
+      <p class="error-msg" id="answerError">Please write an answer before submitting.</p>
+    </div>
+    <button class="btn-submit" id="submitBtn" onclick="submitResponse()">Submit my answer</button>
+  </div>
+  <div class="success-screen" id="successScreen">
+    <div class="checkmark">✓</div>
+    <h2>Thanks, <span id="successName"></span>!</h2>
+    <p>Your answer has been saved.<br>See you at the next icebreaker.</p>
+  </div>
+</div>
+<script>
+  const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSf7uNmowlLSTVwabTyUo439B1C33TFKAgzRDo6eEdQxBFb_Hg/formResponse';
+  const FIELD_NAME   = 'entry.1716585754';
+  const FIELD_ANSWER = 'entry.1395883064';
+
+  const questions = [
+    { category:"Work Style", q:"What does your ideal Monday morning look like?" },
+    { category:"Work Style", q:"Are you a to-do list person or a 'keep it in your head' person?" },
+    { category:"Work Style", q:"What's one tool or app you genuinely couldn't work without?" },
+    { category:"Work Style", q:"Do you prefer diving in immediately or planning thoroughly before starting?" },
+    { category:"Fun & Hobbies", q:"What's a hobby you've picked up in the last two years?" },
+    { category:"Fun & Hobbies", q:"If you could only watch one genre of movie for a year, what would it be?" },
+    { category:"Fun & Hobbies", q:"What's the last book, podcast, or show you'd recommend to a coworker?" },
+    { category:"Fun & Hobbies", q:"What skill have you always wanted to learn but haven't started yet?" },
+    { category:"This or That", q:"Coffee or tea — and how do you take it?" },
+    { category:"This or That", q:"Remote work, office, or a mix? What's your honest preference?" },
+    { category:"This or That", q:"Early bird or night owl — and has that changed over the years?" },
+    { category:"This or That", q:"Headphones in or music off when you're really focused?" },
+    { category:"Getting Curious", q:"What's something you believed at 20 that you no longer believe today?" },
+    { category:"Getting Curious", q:"If you could shadow anyone at any company for a week, who would it be?" },
+    { category:"Getting Curious", q:"What's the best piece of career advice you've ever received?" },
+    { category:"Lighthearted", q:"If your working style were a weather pattern, what would it be?" },
+    { category:"Lighthearted", q:"What emoji best describes your energy on a typical Tuesday afternoon?" },
+    { category:"Lighthearted", q:"You can only eat one cuisine for the rest of your life — what do you pick?" },
+    { category:"Lighthearted", q:"What's a completely useless skill you're secretly proud of?" },
+    { category:"Team Vibes", q:"What's one thing a team can do that immediately builds your trust?" },
+    { category:"Team Vibes", q:"How do you prefer to receive feedback — direct or with more context first?" },
+    { category:"Team Vibes", q:"What makes a meeting actually worth attending?" },
+    { category:"Team Vibes", q:"What's something people often get wrong about you when they first meet you?" },
+  ];
+
+  function getDailyQuestion() {
+    const dayIndex = Math.floor(Date.now() / 86400000);
+    return questions[dayIndex % questions.length];
+  }
+
+  const daily = getDailyQuestion();
+  document.getElementById('questionText').textContent = daily.q;
+
+  async function submitResponse() {
+    const name = document.getElementById('nameInput').value.trim();
+    const answer = document.getElementById('answerInput').value.trim();
+    document.getElementById('nameError').classList.toggle('show', !name);
+    document.getElementById('answerError').classList.toggle('show', !answer);
+    if (!name || !answer) return;
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    // Combine name + question into the name field so HR sees context
+    const nameWithQuestion = name + ' | ' + daily.q;
+
+    const body = new FormData();
+    body.append(FIELD_NAME, nameWithQuestion);
+    body.append(FIELD_ANSWER, answer);
+
+    try {
+      await fetch(FORM_URL, { method: 'POST', mode: 'no-cors', body });
+      document.getElementById('successName').textContent = name.split(' ')[0];
+      document.getElementById('mainForm').classList.add('hide');
+      document.getElementById('successScreen').classList.add('show');
+    } catch(err) {
+      btn.disabled = false;
+      btn.textContent = 'Submit my answer';
+      alert('Something went wrong. Please try again.');
+    }
+  }
+</script>
+</body>
+</html>
